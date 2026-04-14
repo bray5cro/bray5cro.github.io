@@ -1,0 +1,411 @@
+<!--Brayden Crockett
+    4/8/2026
+    Section 001-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Cup Flappy Trophy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+
+        h1 {
+            font-size: 28px;
+            letter-spacing: 4px;
+            color: #ffc400;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            text-shadow: 2px 2px 0px #c60b1e;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+
+        #gameCanvas {
+            border: 3px solid #ffc400;
+            border-radius: 4px;
+            display: block;
+            cursor: pointer;
+        }
+
+        .score-row {
+            display: flex;
+            gap: 40px;
+            margin-top: 14px;
+        }
+
+        .score-box {
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 11px;
+            color: #aaa;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .score-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffc400;
+        }
+
+        .instructions {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+        }
+
+        .back-link {
+            margin-top: 20px;
+            color: #ffc400;
+            text-decoration: none;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <h1>Flappy Trophy</h1>
+    <p class="subtitle">World Cup 2026 Edition</p>
+
+    <canvas id="gameCanvas" width="480" height="560"></canvas>
+
+    <div class="score-row">
+        <div class="score-box">
+            <div class="score-label">Score</div>
+            <div class="score-value" id="scoreDisplay">0</div>
+        </div>
+        <div class="score-box">
+            <div class="score-label">Best</div>
+            <div class="score-value" id="bestDisplay">0</div>
+        </div>
+    </div>
+
+    <p class="instructions">Click or press Space to flap</p>
+    <a href="spain.html" class="back-link">← Back to Spain World Cup Page</a>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const W = canvas.width;
+        const H = canvas.height;
+
+        const NATIONS = [
+            { name: 'Brazil',     top: '#009c3b', mid: '#ffdf00', bot: '#002776' },
+            { name: 'France',     top: '#002395', mid: '#FFFFFF', bot: '#ED2939' },
+            { name: 'Germany',    top: '#000000', mid: '#DD0000', bot: '#FFCE00' },
+            { name: 'Argentina',  top: '#74ACDF', mid: '#FFFFFF', bot: '#74ACDF' },
+            { name: 'Uruguay',    top: '#FFFFFF', mid: '#5EB6E4', bot: '#FFFFFF' },
+            { name: 'Saudi Arabia', top: '#006C35', mid: '#FFFFFF', bot: '#006C35' },
+            { name: 'Cape Verde', top: '#003893', mid: '#CF2027', bot: '#003893' },
+            { name: 'Portugal',   top: '#006600', mid: '#FF0000', bot: '#006600' },
+            { name: 'England',    top: '#FFFFFF', mid: '#CF142B', bot: '#FFFFFF' },
+            { name: 'Netherlands',top: '#AE1C28', mid: '#FFFFFF', bot: '#21468B' },
+        ];
+
+        let state = 'start';
+        let score = 0;
+        let best = 0;
+        let frame = 0;
+
+        const GRAVITY = 0.32;
+        const FLAP = -7.5;
+        const PIPE_SPEED = 2.2;
+        const PIPE_GAP = 175;
+        const PIPE_WIDTH = 64;
+        const PIPE_INTERVAL = 140;
+
+        let trophy = { x: 100, y: H / 2, vy: 0, r: 20 };
+        let pipes = [];
+        let particles = [];
+        let nextNation = 0;
+
+        function resetGame() {
+            trophy = { x: 100, y: H / 2, vy: 0, r: 20 };
+            pipes = [];
+            particles = [];
+            score = 0;
+            frame = 0;
+            nextNation = 0;
+            updateScore();
+        }
+
+        function flap() {
+            if (state === 'start' || state === 'dead') {
+                state = 'playing';
+                resetGame();
+            }
+            if (state === 'playing') {
+                trophy.vy = FLAP;
+                spawnParticles(trophy.x, trophy.y, '#ffc400', 6);
+            }
+        }
+
+        canvas.addEventListener('click', flap);
+        document.addEventListener('keydown', e => {
+            if (e.code === 'Space') { e.preventDefault(); flap(); }
+        });
+
+        function spawnParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 1,
+                    color
+                });
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('bestDisplay').textContent = best;
+        }
+
+        function drawStars() {
+            ctx.fillStyle = '#ffffff22';
+            for (let i = 0; i < 60; i++) {
+                let sx = (i * 137 + frame * 0.2) % W;
+                let sy = (i * 79) % H;
+                let sr = (i % 3 === 0) ? 1.5 : 1;
+                ctx.beginPath();
+                ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#2d5a1b';
+            ctx.fillRect(0, H - 40, W, 40);
+            ctx.fillStyle = '#3a7a24';
+            ctx.fillRect(0, H - 40, W, 8);
+            for (let x = (frame * PIPE_SPEED * 1.5) % 40; x < W; x += 40) {
+                ctx.fillStyle = '#4a9a30';
+                ctx.fillRect(x, H - 40, 20, 8);
+            }
+        }
+
+        function drawTrophy(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            let bob = Math.sin(frame * 0.12) * 2;
+            ctx.translate(0, bob);
+
+            ctx.fillStyle = '#ffc400';
+            ctx.strokeStyle = '#cc9900';
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+            ctx.ellipse(0, -8, 14, 16, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = '#ffdd55';
+            ctx.beginPath();
+            ctx.ellipse(-4, -12, 4, 6, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffc400';
+            ctx.strokeStyle = '#cc9900';
+            ctx.beginPath();
+            ctx.moveTo(-6, 8);
+            ctx.lineTo(-8, 18);
+            ctx.lineTo(8, 18);
+            ctx.lineTo(6, 8);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillRect(-10, 17, 20, 5);
+
+            ctx.beginPath();
+            ctx.moveTo(10, -4);
+            ctx.bezierCurveTo(18, -10, 18, 4, 10, 2);
+            ctx.fill(); ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-10, -4);
+            ctx.bezierCurveTo(-18, -10, -18, 4, -10, 2);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = '#ffffff44';
+            ctx.beginPath();
+            ctx.ellipse(-3, -14, 3, 5, -0.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawFlag(nation, x, y, w, h) {
+            let third = h / 3;
+            ctx.fillStyle = nation.top;
+            ctx.fillRect(x, y, w, third + 1);
+            ctx.fillStyle = nation.mid;
+            ctx.fillRect(x, y + third, w, third + 1);
+            ctx.fillStyle = nation.bot;
+            ctx.fillRect(x, y + third * 2, w, third + 1);
+
+            ctx.fillStyle = '#ffffff22';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(nation.name, x + w / 2, y + h / 2 + 4);
+        }
+
+        function drawPipe(pipe) {
+            let nation = pipe.nation;
+
+            let topH = pipe.gapY;
+            let botY = pipe.gapY + PIPE_GAP;
+            let botH = H - 40 - botY;
+
+            drawFlag(nation, pipe.x, 0, PIPE_WIDTH, topH);
+            drawFlag(nation, pipe.x, botY, PIPE_WIDTH, botH);
+
+            ctx.fillStyle = '#ffffff33';
+            ctx.fillRect(pipe.x, topH - 16, PIPE_WIDTH, 16);
+            ctx.fillRect(pipe.x, botY, PIPE_WIDTH, 16);
+
+            ctx.strokeStyle = '#ffffff55';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(pipe.x, 0, PIPE_WIDTH, topH);
+            ctx.strokeRect(pipe.x, botY, PIPE_WIDTH, botH);
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        function drawHUD() {
+            ctx.fillStyle = '#ffc400';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(score, W / 2, 50);
+        }
+
+        function drawScreen(title, sub) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.fillStyle = '#ffc400';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(title, W / 2, H / 2 - 30);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '16px Arial';
+            ctx.fillText(sub, W / 2, H / 2 + 10);
+
+            if (state === 'dead') {
+                ctx.fillStyle = '#aaa';
+                ctx.font = '14px Arial';
+                ctx.fillText('Score: ' + score + '   Best: ' + best, W / 2, H / 2 + 40);
+            }
+        }
+
+        function checkCollision() {
+            let tx = trophy.x;
+            let ty = trophy.y;
+            let r = trophy.r - 4;
+
+            if (ty + r > H - 40 || ty - r < 0) return true;
+
+            for (let p of pipes) {
+                if (tx + r > p.x && tx - r < p.x + PIPE_WIDTH) {
+                    if (ty - r < p.gapY || ty + r > p.gapY + PIPE_GAP) return true;
+                }
+            }
+            return false;
+        }
+
+        function loop() {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, W, H);
+
+            drawStars();
+
+            if (state === 'playing') {
+                frame++;
+
+                trophy.vy += GRAVITY;
+                trophy.y += trophy.vy;
+
+                if (frame % PIPE_INTERVAL === 0) {
+                    let minGap = 80;
+                    let maxGap = H - 40 - PIPE_GAP - 80;
+                    let gapY = Math.floor(Math.random() * (maxGap - minGap)) + minGap;
+                    let nation = NATIONS[nextNation % NATIONS.length];
+                    nextNation++;
+                    pipes.push({ x: W, gapY, nation, passed: false });
+                }
+
+                pipes.forEach(p => { p.x -= PIPE_SPEED; });
+                pipes = pipes.filter(p => p.x + PIPE_WIDTH > 0);
+
+                pipes.forEach(p => {
+                    if (!p.passed && p.x + PIPE_WIDTH < trophy.x) {
+                        p.passed = true;
+                        score++;
+                        if (score > best) best = score;
+                        updateScore();
+                        spawnParticles(trophy.x, trophy.y, '#ffc400', 10);
+                    }
+                });
+
+                particles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy; p.life -= 0.05;
+                });
+                particles = particles.filter(p => p.life > 0);
+
+                if (checkCollision()) {
+                    spawnParticles(trophy.x, trophy.y, '#c60b1e', 20);
+                    state = 'dead';
+                }
+            }
+
+            pipes.forEach(drawPipe);
+            drawGround();
+            drawParticles();
+            drawTrophy(trophy.x, trophy.y);
+
+            if (state === 'playing') drawHUD();
+            if (state === 'start') drawScreen('FLAPPY TROPHY', 'Click or Space to start');
+            if (state === 'dead') drawScreen('GAME OVER', 'Click or Space to play again');
+
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+
+</body>
+</html>
